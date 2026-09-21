@@ -5,12 +5,10 @@ servidor HTTP/1.1 diretamente sobre sockets TCP (sem bibliotecas HTTP prontas),
 em Python, com foco em como o comportamento do TCP (handshake, RTT,
 conexões persistentes) afeta o desempenho percebido do HTTP.
 
-**Status atual:** planejamento/estrutura do repositório. Nenhum código do
-servidor foi implementado ainda (ver seção [Progresso](#progresso)).
 
 ## Grupo
 
-- Integrante(s): _preencher_
+- Integrante(s): Livia, Luthero, Mariana e Nicolas
 - Identificador usado no header `Server` das respostas: _preencher_
 
 ## Requisitos
@@ -88,35 +86,11 @@ curl -I http://<ip-da-maquina>:8080/index.html   # HEAD
     pacotes, bytes totais, tempo total — mais o RTT médio (`ping`) de
     referência.
 
-## Testes de segurança (obrigatório no relatório)
+## Testes de segurança 
 
 No mínimo três tentativas de path traversal distintas, sendo pelo menos uma
 com percent-encoding, todas devendo resultar em `403 Forbidden`. Scripts em
 `tests/test_traversal.sh`.
 
-## Restrições técnicas
 
-- Sockets TCP diretos (`socket`, `bind`, `listen`, `accept`, `recv`, `send`).
-- Proibido usar qualquer biblioteca/módulo que implemente HTTP do lado
-  servidor (`http.server`, Flask, etc.). Parsing e geração das mensagens
-  HTTP são feitos manualmente.
-- Permitido usar bibliotecas padrão para arquivos, datas, hashes e
-  concorrência (threads).
 
-## Progresso
-
-- [x] Estrutura de pastas do repositório
-- [ ] Parsing de requisição (request-line + headers)
-- [ ] Respostas (status, headers obrigatórios, Content-Type)
-- [ ] GET / HEAD / 405 para outros métodos
-- [ ] Proteção contra path traversal
-- [ ] Concorrência (múltiplas conexões simultâneas)
-- [ ] Conexões persistentes + timeout de ociosidade
-- [ ] Scripts de medição C1/C2
-- [ ] Relatório técnico
-
-## Relatório e apresentação
-
-- Relatório técnico em `docs/report/`.
-- Apresentação da solução ao professor.
-- Teste de interoperabilidade com outro grupo durante a aula de apresentação.
