@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Wireshark captures (grandes; guardar fora do git ou via Git LFS)
+measurements/captures/*.pcap
+measurements/captures/*.pcapng
+
 # C extensions
 *.so
 
