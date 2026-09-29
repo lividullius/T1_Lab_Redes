@@ -20,7 +20,7 @@ def build_request(path, host, keep_alive):
 
 def recv_response(sock):
     # TCP entrega um fluxo de bytes, não mensagens prontas: um único recv() pode trazer a resposta incompleta. 
-    # Por isso acumulamos em `buffer` até encontrar a linha em branco (\r\n\r\n) que fecha a seção de headers.
+    # Por isso acumula em `buffer` até encontrar a linha em branco (\r\n\r\n) que fecha a seção de headers.
     buffer = b""
     while b"\r\n\r\n" not in buffer:
         chunk = sock.recv(4096)
@@ -33,7 +33,7 @@ def recv_response(sock):
     body = buffer[header_end:]
 
     # Em C2 a mesma conexão é reaproveitada para as próximas requisições,
-    # então é essencial saber exatamente onde este corpo termina (via
+    # então precisa saber exatamente onde este corpo termina (via
     # Content-Length) para não misturar bytes desta resposta com o início da próxima.
     content_length = 0
     for line in headers.split("\r\n")[1:]:
@@ -54,7 +54,7 @@ def recv_response(sock):
 
 
 def run_c1(host, port, path, count):
-    # Cenário 1 (C1): uma conexão TCP nova para cada requisição. Isso significa
+    # Cenário 1 (C1): uma conexão TCP nova para cada requisição. 
     # um handshake (SYN/SYN-ACK/ACK) completo por requisição, mais o
     # encerramento da conexão (FIN/ACK) logo em seguida — é esse overhead que a captura do Wireshark deve evidenciar.
     timings = []
@@ -93,26 +93,26 @@ def run_c2(host, port, path, count):
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Cliente de medicao HTTP/1.1: C1 abre uma conexao TCP nova por "
-            "requisicao (Connection: close); C2 reusa uma unica conexao "
-            "persistente para todas as requisicoes."
+            "Cliente de medição HTTP/1.1: C1 abre uma conexão TCP nova por "
+            "requisição (Connection: close); C2 reusa uma única conexão "
+            "persistente para todas as requisições."
         )
     )
     parser.add_argument("--host", required=True, help="IP ou hostname do servidor")
     parser.add_argument("--port", type=int, required=True, help="Porta do servidor")
     parser.add_argument("--path", default="/", help="Recurso requisitado (ex: /index.html)")
     parser.add_argument("--scenario", choices=["c1", "c2"], required=True)
-    parser.add_argument("--requests", type=int, default=10, help="Numero de requisicoes sequenciais")
+    parser.add_argument("--requests", type=int, default=10, help="Número de requisições sequenciais")
     args = parser.parse_args()
 
     runner = run_c1 if args.scenario == "c1" else run_c2
     timings, total = runner(args.host, args.port, args.path, args.requests)
 
     print()
-    print(f"Cenario: {args.scenario.upper()}")
-    print(f"Requisicoes: {len(timings)}")
+    print(f"Cenário: {args.scenario.upper()}")
+    print(f"Requisições: {len(timings)}")
     print(f"Tempo total: {total:.4f}s")
-    print(f"Tempo medio por requisicao: {sum(timings) / len(timings):.4f}s")
+    print(f"Tempo médio por requisição: {sum(timings) / len(timings):.4f}s")
 
 
 if __name__ == "__main__":
