@@ -26,15 +26,12 @@ conexões persistentes) afeta o desempenho percebido do HTTP.
 T1_Lab_Redes/
 ├── src/                    # código-fonte do servidor (Python)
 ├── www/                    # diretório raiz de teste servido pelo servidor
-├── tests/                  # scripts de verificação manual (curl/nc, traversal, concorrência)
-├── measurements/
-│   ├── captures/           # capturas .pcapng do Wireshark (ignoradas no git)
-│   ├── results/            # métricas extraídas das capturas (handshakes, pacotes, bytes, tempo)
-│   └── scripts/            # cliente de medição para os cenários C1/C2
-└── docs/report/            # fontes do relatório técnico final
+├── testes/                 # scripts de verificação manual (curl/nc, traversal, concorrência)
+└── medicoes/
+    ├── capturas/           # capturas .pcapng do Wireshark (ignoradas no git)
+    ├── resultados/         # métricas extraídas das capturas (handshakes, pacotes, bytes, tempo)
+    └── scripts/            # cliente de medição para os cenários C1/C2
 ```
-
-Cada uma dessas pastas tem um `README.md` próprio detalhando o que vai nela.
 
 ## Como executar (previsto)
 
@@ -90,7 +87,7 @@ curl -I http://<ip-da-maquina>:8080/index.html   # HEAD
 
 No mínimo três tentativas de path traversal distintas, sendo pelo menos uma
 com percent-encoding, todas devendo resultar em `403 Forbidden`. Scripts em
-`tests/test_traversal.sh`.
+`testes/test_traversal.sh`.
 
 
 
