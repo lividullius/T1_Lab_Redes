@@ -1,41 +1,30 @@
 #!/usr/bin/env python3
-import argparse
-import email.utils
 import os
 import socket
+import sys
 import threading
-import urllib.parse
+import time
 
 SERVER_NAME = "T1-Lab-Redes/1.0"
 IDLE_TIMEOUT = 5
 MAX_HEAD_SIZE = 16384
-RECV_SIZE = 4096
 
 REASONS = {
-    200: "OK",
-    400: "Bad Request",
-    403: "Forbidden",
-    404: "Not Found",
-    405: "Method Not Allowed",
-    500: "Internal Server Error",
-    505: "HTTP Version Not Supported",
+    200: "OK", 400: "Bad Request", 403: "Forbidden", 404: "Not Found",
+    405: "Method Not Allowed", 500: "Internal Server Error", 505: "HTTP Version Not Supported",
 }
 
 CONTENT_TYPES = {
-    ".html": "text/html; charset=utf-8",
-    ".htm": "text/html; charset=utf-8",
-    ".css": "text/css; charset=utf-8",
-    ".js": "text/javascript; charset=utf-8",
-    ".json": "application/json",
-    ".txt": "text/plain; charset=utf-8",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".svg": "image/svg+xml",
-    ".ico": "image/x-icon",
-    ".pdf": "application/pdf",
+    ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8", ".json": "application/json",
+    ".txt": "text/plain; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg", ".gif": "image/gif", ".svg": "image/svg+xml",
+    ".ico": "image/x-icon", ".pdf": "application/pdf",
 }
+
+DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+HEX = b"0123456789abcdefABCDEF"
 
 
 class HttpError(Exception):
@@ -46,31 +35,45 @@ class HttpError(Exception):
 
 
 def http_date():
-    # IMF-fixdate (RFC 9110), ex: "Sun, 06 Nov 1994 08:49:37 GMT"
-    return email.utils.formatdate(usegmt=True)
+    # IMF-fixdate (RFC 9110): "Sun, 06 Nov 1994 08:49:37 GMT"
+    t = time.gmtime()
+    return (f"{DAYS[t.tm_wday]}, {t.tm_mday:02d} {MONTHS[t.tm_mon - 1]} {t.tm_year} "
+            f"{t.tm_hour:02d}:{t.tm_min:02d}:{t.tm_sec:02d} GMT")
 
 
-def content_type_for(path):
-    ext = os.path.splitext(path)[1].lower()
-    return CONTENT_TYPES.get(ext, "application/octet-stream")
+def percent_decode(path):
+    raw, out, i = path.encode("iso-8859-1"), bytearray(), 0
+    while i < len(raw):
+        if raw[i] == ord("%"):
+            pair = raw[i + 1:i + 3]
+            if len(pair) != 2 or any(c not in HEX for c in pair):
+                raise HttpError(400)
+            out.append(int(pair, 16))
+            i += 3
+        else:
+            out.append(raw[i])
+            i += 1
+    try:
+        return out.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HttpError(400)
 
 
 def read_head(conn, buffer):
-    """Acumula bytes do socket até CRLFCRLF. Retorna (head, sobra) ou (None, b"") se o cliente fechou."""
+    """Acumula bytes até CRLFCRLF. Retorna (head, sobra) ou (None, b"") se o cliente fechou."""
     while True:
-        buffer = buffer.lstrip(b"\r\n")  # RFC 9112 permite CRLFs soltos antes da request-line
+        buffer = buffer.lstrip(b"\r\n")
         if b"\r\n\r\n" in buffer:
-            break
+            head, _, rest = buffer.partition(b"\r\n\r\n")
+            return head.decode("iso-8859-1"), rest
         if len(buffer) > MAX_HEAD_SIZE:
             raise HttpError(400)
-        chunk = conn.recv(RECV_SIZE)
+        chunk = conn.recv(4096)
         if not chunk:
             if buffer:
                 raise HttpError(400)
             return None, b""
         buffer += chunk
-    head, _, rest = buffer.partition(b"\r\n\r\n")
-    return head.decode("iso-8859-1"), rest
 
 
 def parse_request(head):
@@ -92,17 +95,15 @@ def parse_request(head):
 
 
 def skip_body(conn, buffer, headers):
-    """GET/HEAD não usam corpo, mas se vier um é descartado para não corromper a próxima requisição."""
-    try:
-        length = int(headers.get("content-length", "0"))
-    except ValueError:
+    """GET/HEAD não têm corpo, mas se vier um é descartado para não corromper a próxima requisição."""
+    length = headers.get("content-length", "0")
+    if not length.isdigit():
         raise HttpError(400)
-    if length < 0:
-        raise HttpError(400)
+    length = int(length)
     while len(buffer) < length:
-        chunk = conn.recv(RECV_SIZE)
+        chunk = conn.recv(4096)
         if not chunk:
-            raise ConnectionError("cliente fechou no meio do corpo")
+            raise ConnectionError
         buffer += chunk
     return buffer[length:]
 
@@ -115,18 +116,18 @@ def wants_keep_alive(version, headers):
 
 
 def resolve_path(root, target):
-    path = urllib.parse.urlsplit(target).path
+    path = target.split("?", 1)[0].split("#", 1)[0]
     if not path.startswith("/"):
         raise HttpError(400)
-    path = urllib.parse.unquote(path)
+    path = percent_decode(path)
     if "\0" in path:
         raise HttpError(400)
     if ".." in path.replace("\\", "/").split("/"):
         raise HttpError(403)
 
+    # realpath resolve symlinks: um link em www/ apontando para fora também é barrado
     full_path = os.path.realpath(os.path.join(root, path.lstrip("/")))
-    # realpath resolve symlinks: um link dentro de www/ apontando para fora também é barrado
-    if os.path.commonpath([root, full_path]) != root:
+    if full_path != root and not full_path.startswith(root + os.sep):
         raise HttpError(403)
     if os.path.isdir(full_path):
         full_path = os.path.join(full_path, "index.html")
@@ -146,16 +147,10 @@ def send_response(conn, status, body, content_type, keep_alive, head_only, extra
         "Connection": "keep-alive" if keep_alive else "close",
         **(extra_headers or {}),
     }
-    lines = [f"HTTP/1.1 {status} {REASONS[status]}"]
-    lines += [f"{name}: {value}" for name, value in headers.items()]
-    head = ("\r\n".join(lines) + "\r\n\r\n").encode("iso-8859-1")
-    # HEAD: mesmos headers (inclusive Content-Length) do GET, mas sem corpo
-    conn.sendall(head if head_only else head + body)
-
-
-def send_error(conn, error, keep_alive, head_only):
-    body = f"{error.status} {REASONS[error.status]}\n".encode("utf-8")
-    send_response(conn, error.status, body, "text/plain; charset=utf-8", keep_alive, head_only, error.headers)
+    head = f"HTTP/1.1 {status} {REASONS[status]}\r\n"
+    head += "".join(f"{name}: {value}\r\n" for name, value in headers.items()) + "\r\n"
+    # HEAD: mesmos headers do GET (inclusive Content-Length), mas sem corpo
+    conn.sendall(head.encode("iso-8859-1") + (b"" if head_only else body))
 
 
 def handle_connection(conn, addr, root):
@@ -163,7 +158,8 @@ def handle_connection(conn, addr, root):
     buffer = b""
     with conn:
         while True:
-            method, target, keep_alive = None, None, False
+            method = target = None
+            keep_alive = False
             try:
                 head, buffer = read_head(conn, buffer)
                 if head is None:
@@ -171,7 +167,6 @@ def handle_connection(conn, addr, root):
                 method, target, version, headers = parse_request(head)
                 buffer = skip_body(conn, buffer, headers)
                 keep_alive = wants_keep_alive(version, headers)
-
                 if version == "HTTP/1.1" and "host" not in headers:
                     raise HttpError(400)
                 if method not in ("GET", "HEAD"):
@@ -180,16 +175,19 @@ def handle_connection(conn, addr, root):
                 file_path = resolve_path(root, target)
                 with open(file_path, "rb") as f:
                     body = f.read()
-                send_response(conn, 200, body, content_type_for(file_path), keep_alive, method == "HEAD")
+                ext = os.path.splitext(file_path)[1].lower()
+                content_type = CONTENT_TYPES.get(ext, "application/octet-stream")
+                send_response(conn, 200, body, content_type, keep_alive, method == "HEAD")
                 status = 200
-            except HttpError as e:
-                send_error(conn, e, keep_alive, method == "HEAD")
-                status = e.status
             except (socket.timeout, OSError):
                 return
-            except Exception:
-                send_error(conn, HttpError(500), False, method == "HEAD")
-                status, keep_alive = 500, False
+            except Exception as e:
+                if not isinstance(e, HttpError):
+                    e, keep_alive = HttpError(500), False
+                status = e.status
+                body = f"{status} {REASONS[status]}\n".encode()
+                send_response(conn, status, body, "text/plain; charset=utf-8",
+                              keep_alive, method == "HEAD", e.headers)
 
             print(f"{addr[0]}:{addr[1]} {method} {target} -> {status}", flush=True)
             if not keep_alive:
@@ -199,7 +197,7 @@ def handle_connection(conn, addr, root):
 def serve(port, root):
     root = os.path.realpath(root)
     if not os.path.isdir(root):
-        raise SystemExit(f"diretório raiz não encontrado: {root}")
+        sys.exit(f"diretório raiz não encontrado: {root}")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_sock:
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -213,12 +211,11 @@ def serve(port, root):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Servidor HTTP/1.1 sobre sockets TCP")
-    parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--root", required=True)
-    args = parser.parse_args()
+    args = dict(zip(sys.argv[1::2], sys.argv[2::2]))
+    if len(sys.argv) != 5 or set(args) != {"--port", "--root"} or not args["--port"].isdigit():
+        sys.exit("uso: server.py --port <porta> --root <diretorio>")
     try:
-        serve(args.port, args.root)
+        serve(int(args["--port"]), args["--root"])
     except KeyboardInterrupt:
         pass
 
