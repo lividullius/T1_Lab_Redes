@@ -5,11 +5,10 @@ servidor HTTP/1.1 diretamente sobre sockets TCP (sem bibliotecas HTTP prontas),
 em Python, com foco em como o comportamento do TCP (handshake, RTT,
 conexões persistentes) afeta o desempenho percebido do HTTP.
 
-
 ## Grupo
 
 - Integrante(s): Livia, Luthero, Mariana e Nicolas
-- Identificador usado no header `Server` das respostas: _preencher_
+- Identificador usado no header `Server` das respostas: `T1-Lab-Redes/1.0`
 
 ## Requisitos
 
@@ -26,25 +25,36 @@ conexões persistentes) afeta o desempenho percebido do HTTP.
 T1_Lab_Redes/
 ├── src/                    # código-fonte do servidor (Python)
 ├── www/                    # diretório raiz de teste servido pelo servidor
-├── testes/                 # scripts de verificação manual (curl/nc, traversal, concorrência)
+├── testes/                 # test_server.py — checklist de conformidade (status codes + traversal)
 └── medicoes/
-    ├── capturas/           # capturas .pcapng do Wireshark (ignoradas no git)
+    ├── capturas/           # capturas .pcapng do Wireshark (c1.pcapng, c2.pcapng — ignoradas no git)
     ├── resultados/         # métricas extraídas das capturas (handshakes, pacotes, bytes, tempo)
-    └── scripts/            # cliente de medição para os cenários C1/C2
+    └── scripts/            # cliente de medição (measure.py) para os cenários C1/C2
 ```
 
-## Como executar (previsto)
+## Como compilar/executar
+
+Não há compilação: é um único script Python, sem dependências externas.
 
 ```bash
 python3 src/server.py --port 8080 --root ./www
 ```
 
-- `--port`: porta alta (> 1024) em que o servidor escuta.
-- `--root`: diretório raiz servido. O servidor faz bind em `0.0.0.0`
-  (todas as interfaces), nunca só em `127.0.0.1`.
+### Argumentos de linha de comando
 
-Teste local rápido (na mesma máquina, apenas para sanity check — as medições
-oficiais exigem duas máquinas):
+| Argumento | Obrigatório | Descrição |
+|---|---|---|
+| `--port` | sim | Porta TCP em que o servidor escuta. Deve ser > 1024 (porta alta, não privilegiada). |
+| `--root` | sim | Diretório raiz servido (caminho absoluto ou relativo). Nenhum arquivo fora dele é servido, nem com `..` ou percent-encoding. |
+
+O servidor faz *bind* em `0.0.0.0` (todas as interfaces), nunca só em
+`127.0.0.1`, para aceitar conexões de outras máquinas da rede. Encerra com
+`Ctrl+C`.
+
+### Teste local rápido (sanity check)
+
+As medições oficiais da Parte 2 exigem duas máquinas distintas (RTT real),
+mas para checar que o servidor está de pé:
 
 ```bash
 curl -i http://<ip-da-maquina>:8080/index.html
@@ -83,11 +93,68 @@ curl -I http://<ip-da-maquina>:8080/index.html   # HEAD
     pacotes, bytes totais, tempo total — mais o RTT médio (`ping`) de
     referência.
 
-## Testes de segurança 
+## Verificação de conformidade (status codes)
 
-No mínimo três tentativas de path traversal distintas, sendo pelo menos uma
-com percent-encoding, todas devendo resultar em `403 Forbidden`. Scripts em
-`testes/test_traversal.sh`.
+`testes/test_server.py` automatiza os 5 status codes obrigatórios e as 3
+tentativas de path traversal numa só execução (sockets crus, sem `curl`):
 
+```bash
+python3 testes/test_server.py --host <ip> --port 8080
+```
 
+Os comandos abaixo produzem os mesmos casos manualmente, úteis para colar a
+requisição/resposta completa na tabela de conformidade do relatório:
 
+```bash
+# 200 OK
+curl -i http://<ip>:8080/index.html
+
+# 200 OK, sem corpo (HEAD)
+curl -I http://<ip>:8080/index.html
+
+# 404 Not Found
+curl -i http://<ip>:8080/naoexiste.html
+
+# 405 Method Not Allowed (Allow: GET, HEAD)
+curl -i -X DELETE http://<ip>:8080/index.html
+
+# 400 Bad Request (request-line sem versão HTTP)
+printf 'GET /index.html\r\nHost: x\r\n\r\n' | nc <ip> 8080
+```
+
+## Testes de segurança (path traversal)
+
+Também cobertas por `testes/test_server.py` (acima). Três tentativas
+distintas, todas devendo resultar em `403 Forbidden` — os mesmos comandos
+curl abaixo usam `--path-as-is` para o `..` não ser normalizado *antes* de
+sair da máquina cliente:
+
+```bash
+# 1. travessia direta
+curl -i --path-as-is http://<ip>:8080/../../etc/passwd
+
+# 2. travessia com percent-encoding simples (%2e%2e = "..")
+curl -i --path-as-is http://<ip>:8080/%2e%2e/%2e%2e/etc/passwd
+
+# 3. travessia com barra percent-encoded (%2f = "/")
+curl -i --path-as-is http://<ip>:8080/..%2f..%2fetc/passwd
+```
+
+## Medição C1 vs C2 (Parte 2)
+
+A partir da outra máquina (cliente), com o Wireshark capturando
+(`tcp.port == <porta>`), iniciar uma captura por cenário:
+
+```bash
+# C1: uma conexão nova por requisição
+python3 medicoes/scripts/measure.py --host <ip-servidor> --port 8080 \
+    --path /index.html --scenario c1 --requests 10
+
+# C2: uma única conexão persistente para as 10 requisições
+python3 medicoes/scripts/measure.py --host <ip-servidor> --port 8080 \
+    --path /index.html --scenario c2 --requests 10
+```
+
+Salvar as capturas como `medicoes/capturas/c1.pcapng` e
+`medicoes/capturas/c2.pcapng`. Antes de medir, registrar o RTT médio entre
+as máquinas com `ping <ip-servidor>`.
