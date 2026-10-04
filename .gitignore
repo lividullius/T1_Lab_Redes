@@ -5,7 +5,7 @@ __pycache__/
 
 # Capturas do Wireshark (grandes; guardar fora do git ou via Git LFS)
 medicoes/capturas/*.pcap
-medicoes/capturas/*.pcapng
+#medicoes/capturas/*.pcapng
 
 # C extensions
 *.so
