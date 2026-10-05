@@ -1,0 +1,33 @@
+File name:           C2.pcapng
+File type:           Wireshark/... - pcapng
+File encapsulation:  Ethernet
+File timestamp precision:  nanoseconds (9)
+Packet size limit:   file hdr: (not set)
+Number of packets:   28
+File size:           9456 bytes
+Data size:           8094 bytes
+Capture duration:    0.200198000 seconds
+Earliest packet time: 2026-10-04 01:29:25.723845400
+Latest packet time:   2026-10-04 01:29:25.924043400
+Data byte rate:      40 kBps
+Data bit rate:       323 kbps
+Average packet size: 289.07 bytes
+Average packet rate: 139 packets/s
+SHA256:              412c3f6a0c1fc6f404d702fe723ab25d10547efb5501317f5ee965c5020c4d06
+SHA1:                afd322f25cad440ff68174bbae4e62acaffb8050
+Strict time order:   True
+Capture hardware:    Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz (with SSE4.2)
+Capture oper-sys:    64-bit Windows 11 (25H2), build 26200
+Capture application: Dumpcap (Wireshark) 4.6.9 (v4.6.9-0-g2d548b197c75)
+Number of interfaces in file: 1
+Interface #0 info:
+                     Name = \Device\NPF_{1D5484C4-05EA-4584-A1E0-EDB32AC609B0}
+                     Description = Wi-Fi
+                     Encapsulation = Ethernet (1 - ether)
+                     Capture length = 262144
+                     Time precision = nanoseconds (9)
+                     Time ticks per second = 1000000000
+                     Time resolution = 0x09
+                     Operating system = 64-bit Windows 11 (25H2), build 26200
+                     Number of stat entries = 1
+                     Number of packets = 28

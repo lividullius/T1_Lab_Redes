@@ -1,0 +1,102 @@
+### 1. GET /index.html -> 200 OK
+HTTP/1.1 200 OK
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/html; charset=utf-8
+Content-Length: 414
+Connection: keep-alive
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>T1 Lab Redes</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h1>Servidor HTTP/1.1 funcionando</h1>
+  <p>Página servida pelo servidor implementado sobre sockets TCP.</p>
+  <img src="/rede.png" alt="Imagem pro trabalho" width="320" height="160">
+  <p id="info"></p>
+  <script src="/app.js"></script>
+</body>
+</html>
+
+
+### 2. HEAD /index.html -> 200 OK sem corpo
+HTTP/1.1 200 OK
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/html; charset=utf-8
+Content-Length: 414
+Connection: keep-alive
+
+
+
+### 3. GET /naoexiste.html -> 404 Not Found
+HTTP/1.1 404 Not Found
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/plain; charset=utf-8
+Content-Length: 14
+Connection: keep-alive
+
+404 Not Found
+
+
+### 4. DELETE /index.html -> 405 Method Not Allowed
+HTTP/1.1 405 Method Not Allowed
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/plain; charset=utf-8
+Content-Length: 23
+Connection: keep-alive
+Allow: GET, HEAD
+
+405 Method Not Allowed
+
+
+### 5. Request-line malformada (sem versao HTTP) -> 400 Bad Request
+HTTP/1.1 400 Bad Request
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/plain; charset=utf-8
+Content-Length: 16
+Connection: close
+
+400 Bad Request
+
+
+### 6. Travessia direta -> 403 Forbidden
+HTTP/1.1 403 Forbidden
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/plain; charset=utf-8
+Content-Length: 14
+Connection: keep-alive
+
+403 Forbidden
+
+
+### 7. Travessia com percent-encoding em '..' -> 403 Forbidden
+HTTP/1.1 403 Forbidden
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/plain; charset=utf-8
+Content-Length: 14
+Connection: keep-alive
+
+403 Forbidden
+
+
+### 8. Travessia com barra percent-encoded -> 403 Forbidden
+HTTP/1.1 403 Forbidden
+Date: Sun, 04 Oct 2026 21:33:59 GMT
+Server: T1-Lab-Redes/1.0
+Content-Type: text/plain; charset=utf-8
+Content-Length: 14
+Connection: keep-alive
+
+403 Forbidden
+
+
